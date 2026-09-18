@@ -1,0 +1,200 @@
+/* ==========================================================================
+   🌐 1. 웹 폰트 로드 및 기본 UI 세팅 (Pretendard)
+   ========================================================================== */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+
+/* 전역 본문 설정 (눈이 편안한 오피스 화이트/그레이 무드) */
+body {
+  font-family: "Pretendard", -apple-system, sans-serif !important;
+  background-color: #f4f7fa !important; 
+  color: #1e293b !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 !important;
+  padding: 40px 20px !important;
+}
+
+/* 상단 제목 타이틀 라인 정중앙 고정 */
+.title_line {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a !important;
+  text-align: center !important;
+  margin-top: 10px !important;
+  margin-bottom: 35px !important;
+  display: block !important;
+}
+
+/* ==========================================================================
+   📐 2. 로그인 / 정보 수정 폼 (충돌 없는 좌우 정중앙 배치)
+   ========================================================================== */
+/* 💡 특정 파일과 충돌하지 않도록 선택자 점수를 대폭 높여 강제로 한가운데 놓습니다 */
+html body #root form,
+#root div form,
+form {
+  background: #ffffff !important; 
+  padding: 45px 50px !important;
+  border-radius: 12px !important; 
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04) !important; 
+  border: 1px solid #e2e8f0 !important;
+  
+  /* 💡 유저분이 원하시는 편안하고 시원시원한 가로폭 비율 */
+  width: 70% !important;
+  max-width: 860px !important;
+  min-width: 600px !important;
+  
+  /* 💡 좌우 여백을 똑같이 쪼개어 모니터 무조건 한가운데로 고정 */
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  float: none !important;
+}
+
+/* ==========================================================================
+   📊 3. 관리자 목록 표 (Table) 고가독성 디자인 리스타일링
+   ========================================================================== */
+/* 테이블 레이아웃 (좌우 치우침 없이 시원하게 펼쳐짐) */
+.table {
+  width: 100% !important;
+  margin-top: 10px !important;
+  margin-bottom: 20px !important;
+  background-color: #ffffff !important;
+  border-collapse: separate !important; /* 라운딩 구현용 */
+  border-spacing: 0 !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03) !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* 테이블 헤더 (맨 위 제목 칸 - 신뢰감을 주는 다크네이비) */
+.table th, .table thead th {
+  background-color: #1e293b !important; 
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  padding: 14px 16px !important;
+  font-size: 0.95rem !important;
+  border: none !important;
+  text-align: center !important;
+}
+
+/* 테이블 데이터 칸 (가독성 최우선) */
+.table td {
+  padding: 14px 16px !important;
+  color: #334155 !important;
+  font-size: 0.92rem !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid #f1f5f9 !important; 
+  background-color: #ffffff !important;
+  text-align: center !important;
+}
+
+/* 마우스 올렸을 때 줄 하이라이트 효과 */
+.table tbody tr:hover td {
+  background-color: #f8fafc !important;
+}
+
+/* ==========================================================================
+   📝 4. 폼 내부 입력 필드 정돈 (눈이 편안한 구성)
+   ========================================================================== */
+.form-label {
+  font-weight: 700 !important;
+  color: #334155 !important;
+  margin-bottom: 8px !important;
+  font-size: 0.95rem !important;
+  text-align: left !important;
+}
+
+.form-control, .form-select {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  padding: 11px 14px !important;
+  font-size: 0.95rem !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+/* 클릭(Focus) 시 차분한 오피스 블루 테마 포인트 */
+.form-control:focus, .form-select:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+  outline: none !important;
+}
+
+.form-control[readonly] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+.d-flex {
+  gap: 8px !important;
+}
+
+/* ==========================================================================
+   🔮 5. 버튼 테마 (정돈된 수정/삭제 및 오피스 블루)
+   ========================================================================== */
+/* 수정완료, 로그인 등 메인 버튼 */
+.btn-primary {
+  background-color: #2563eb !important; 
+  border-color: #2563eb !important;
+  border-radius: 6px !important;
+  padding: 10px 24px !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease !important;
+}
+.btn-primary:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* 💡 목록 내부의 [수정] 버튼 스타일 고급화 */
+.table .btn-success, .table .btn-warning, .table a[href*="update"] {
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #1d4ed8 !important; 
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  padding: 6px 14px !important;
+  border-radius: 6px !important;
+  text-decoration: none !important;
+  display: inline-block;
+}
+.table .btn-success:hover, .table .btn-warning:hover, .table a[href*="update"]:hover {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+/* 💡 목록 내부의 [삭제] 버튼 스타일 고급화 */
+.table .btn-danger, .table a[href*="delete"] {
+  background-color: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  color: #dc2626 !important; 
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  padding: 6px 14px !important;
+  border-radius: 6px !important;
+  text-decoration: none !important;
+  display: inline-block;
+}
+.table .btn-danger:hover, .table a[href*="delete"]:hover {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+/* 중복검사, 취소 버튼 등 일반 서브 버튼 */
+#btnCheckId, #btnCheckNick, #btnTest, .btn-secondary {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #2563eb !important; 
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  padding: 10px 18px !important;
+  white-space: nowrap;
+}
+#btnCheckId:hover, #btnCheckNick:hover, #btnTest:hover, .btn-secondary:hover {
+  background-color: #e2e8f0 !important;
+  color: #1d4ed8 !important;
+}
