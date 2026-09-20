@@ -83,7 +83,7 @@ const Menu: React.FC = () => {
               <>
                 <li style={{ color: '#ccc' }}>|</li>
                 <li>
-                  <Link to="/notice/find_all" style={{ color: '#212529', textDecoration: 'none' }}>공지사항</Link>
+                  <Link to="/notice/list" style={{ color: '#212529', textDecoration: 'none' }}>공지사항</Link>
                 </li>
               </>
             )}

@@ -1,195 +1,260 @@
-import React, { useEffect, useState, type ChangeEvent } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { enter_chk, axiosInstance } from '../Tool'
-import { GlobalStoreSession } from '../../store/store'
-import type CateType from '../cate/CateType'
+import React, { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { axiosInstance } from '../Tool';
+import { GlobalStoreSession } from '../../store/store';
+import SimpleModal, { type SimpleModalTypePayload } from '../SimpleModal';
+import type CateType from '../cate/CateType';
 
-const Contents_Create = () => {
-  // 🎯 [교정] Zustand 가이드에 맞게 셀렉터 형태로 memberno 상태를 안전하게 구독합니다.
-  const memberno = GlobalStoreSession((state) => state.memberno);
+export default function Contents_Create() {
   const navigate = useNavigate();
+  const { cateno } = useParams<{ cateno: string }>();
 
-  const { cateno } = useParams();
-  console.log('-> cateno:', cateno);
+  // Zustand 세션 스토어에서 로그인 정보 추출
+  const { memberno, login } = GlobalStoreSession();
 
-  const [cate, setCate] = useState<CateType>({});
+  // 모달 상태
+  const [modal, setModal] = useState<SimpleModalTypePayload>({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: undefined,
+  });
 
-  useEffect(
-    () => {
-      axiosInstance.get(`/cate/${cateno}`)
-      .then(result => result.data)
-      .then(data => {
-        setCate(data);
-        console.log('-> cate data:', data);
-      })
-      .catch(err => console.error(err));
+  const openModal = (payload: SimpleModalTypePayload) => setModal({
+    show: true,
+    title: payload.title,
+    message: payload.message,
+    onConfirm: payload.onConfirm ?? undefined,
+  });
 
-    }, [cateno]
-  );
+  const closeModal = () => setModal(prev => ({ ...prev, show: false }));
 
-  // 상태 객체 사용 (원본 유지)
-  const [input, setInput] = useState(
-    {
-      title: '제목',
-      content: '내용',
-      word: '검색',
-      password: '1234',
-    }    
-  );
-  
-  // e.target: event가 발생한 태그 (원본 유지)
-  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> ) => {
-    const { id, value } = e.target;
-    setInput({ ...input, [id]: value });
-  }
+  // 카테고리 정보 및 입력 폼 상태
+  const [cate, setCate] = useState<CateType>({} as CateType);
+  const [title, setTitle] = useState<string>('');
+  const [content, setContent] = useState<string>('');
+  const [passwd, setPasswd] = useState<string>('1234');
+  const [word, setWord] = useState<string>('');
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const [file, setFile] = useState<File | null>(null); // 이미지 파일
+  // 카테고리 정보 로드
+  useEffect(() => {
+    if (!cateno) return;
 
-  // 파일 전송 완료를 기다려야 함으로 동기 통신을 지정
- // 📝 Contents_Create.tsx 내부 send 함수 최종 조율
+    axiosInstance.get(`/cate/${cateno}`)
+      .then(res => setCate(res.data))
+      .catch(err => console.error('카테고리 정보 조회 실패:', err));
+  }, [cateno]);
 
- // 📝 Contents_Create.tsx 내부 send 함수 원상복구
+  // 이미지 파일 선택 핸들러 + 미리보기
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] ?? null;
+    setFile(selectedFile);
 
-  const send = async (e: React.SyntheticEvent) => {
+    if (selectedFile) {
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreviewUrl(objectUrl);
+    } else {
+      setPreviewUrl('');
+    }
+  };
+
+  // 등록 제출 핸들러 (POST /contents/create)
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    console.log('-> 복구 확인 memberno:', memberno); // 이제 99가 아니라 로그인한 번호가 찍혀야 합니다.
-    console.log('-> 복구 확인 cateno:', cateno);
+    if (!title.trim()) {
+      openModal({ show: true, title: '입력 확인', message: '가이드 제목을 입력해 주세요.' });
+      return;
+    }
+    if (!passwd.trim()) {
+      openModal({ show: true, title: '입력 확인', message: '수정/삭제용 비밀번호를 입력해 주세요.' });
+      return;
+    }
 
     const formData = new FormData();
-    
-    // 🎯 [원상복구] 강제 고정했던 '5'를 지우고, 로그인한 사원의 번호를 동적으로 전달합니다.
-    // 물고기가 고래가 되지 않게 유저님의 원본 변수 형태를 그대로 살립니다.
-    formData.append('memberno', String(memberno)); // 이제 진짜 로그인한 사원번호가 들어갑니다!
-    formData.append('cateno', String(cateno));     // 11번 진열 카테고리 그대로 연동
-    
-    formData.append('title', input.title);
-    formData.append('content', input.content);
-    formData.append('word', input.word);
-    formData.append('password', input.password);
-    if (file) formData.append('file1MF', file);
+    formData.append('cateno', String(cateno));
+    formData.append('memberno', String(memberno || 1));
+    formData.append('title', title.trim());
+    formData.append('content', content.trim());
+    formData.append('passwd', passwd.trim());
+    formData.append('password', passwd.trim()); // 백엔드 DTO 및 파라미터 호환성 보장
+    formData.append('word', word.trim());
 
-    // ... 이하 동일 (axios.post 로직)
+    if (file) {
+      formData.append('file1MF', file);
+    }
 
     try {
-      const response = await axiosInstance.post(`/contents/create`, formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      setIsSubmitting(true);
+      const res = await axiosInstance.post('/contents/create', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
-      if (response.status === 401) {
-        alert('업로드 권한이 없습니다.\n관리자로 다시 로그인 해주세요.');
-        return;
-      } else if (response.status !== 200) {
-        alert('업로드에 실패했습니다.\n다시 시도해주세요.');
-        return;
+      if (res.data && res.data.contentsno) {
+        openModal({
+          show: true,
+          title: '등록 완료',
+          message: '새 가이드 콘텐츠가 성공적으로 등록되었습니다.',
+          onConfirm: () => navigate(`/contents/list_all/${cateno}`),
+        });
+      } else {
+        openModal({
+          show: true,
+          title: '등록 실패',
+          message: '서버 등록 처리 중 문제가 발생했습니다.',
+        });
       }
-
-      const result = await response.data;
-      console.log('서버 응답:', result);
-      
-      // 등록 성공 후 원하셨던 11번 진열 목록 화면으로 깔끔하게 리다이렉트
-      navigate("/contents/list_all/" + cateno);
-
     } catch (err) {
-      console.error('네트워크 오류:', err);
-      alert('네트워크 오류가 발생했습니다.\n다시 시도해주세요.');
+      console.error('콘텐츠 등록 에러:', err);
+      openModal({
+        show: true,
+        title: '네트워크 오류',
+        message: '서버와 통신 중 오류가 발생했습니다.',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
-    <div className='content'>
-      <div className='title_line_left' >{cate.grp} 〉 {cate.name}</div>
-      <aside className='aside_right'>
-        <Link to={`/contents/create/${cate.cateno}`}>등록</Link>
-        <span className='aside_menu_divide'>|</span>
-        <a href='javascript: location.reload()'>새로고침</a>
-      </aside>
-      <div className='aside_menu_line'></div> 
-
-      {/* 입력 폼 */}
-      <form onSubmit={send} encType="multipart/form-data">
-        <input type="hidden" name="cateno" value={cateno} />
-
-        {/* 제목 */}
-        <div className='input_div'>
-          <label className="form-label">제목</label>
-          <input type="text" name="title" id='title' value={input.title}
-                 onChange={onChange} required autoFocus
-                 onKeyDown={e => enter_chk(e, 'content')}
-                 className="form-control" style={{ flex: 1 }}
-          />
+    <div className="container" style={{ maxWidth: '900px', margin: '40px auto', padding: '0 15px' }}>
+      
+      {/* 상단 경로 안내 */}
+      <div className="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom">
+        <div>
+          <span className="badge bg-secondary mb-1">{cate.grp || '공정'}</span>
+          <h3 className="fw-bold mb-0 text-dark">📝 {cate.name || '가이드'} 신규 등록</h3>
         </div>
+        <Link to={`/contents/list_all/${cateno}`} className="btn btn-outline-secondary btn-sm">
+          ← 목록으로
+        </Link>
+      </div>
 
-        {/* 내용 */}
-        <div className='input_div'>
-          <label>내용</label>
-          <textarea name="content" id='content' 
-            value={input.content}
-            onChange={onChange} required 
-            className="form-control"
-            rows={6} style={{ flex: 1 }}
-          />
+      {/* 등록 카드 폼 */}
+      <div className="card shadow-sm border-0">
+        <div className="card-body p-4">
+          <form onSubmit={handleSubmit}>
+            
+            {/* 1. 가이드 제목 */}
+            <div className="mb-3">
+              <label className="form-label fw-bold">가이드 제목 <span className="text-danger">*</span></label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="예: [IB] 입고 토트 바코드 스캔 표준 절차"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* 2. 첨부 이미지 및 미리보기 */}
+            <div className="row g-3 mb-3">
+              <div className="col-md-7">
+                <label className="form-label fw-bold">현장 사진 / 지침 이미지 첨부</label>
+                <input
+                  type="file"
+                  className="form-control"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+                <div className="form-text small">
+                  JPG, PNG 등 현장 작업 가이드 사진을 등록해 주세요.
+                </div>
+              </div>
+              <div className="col-md-5 text-center">
+                <label className="form-label fw-bold text-muted small d-block">사진 미리보기</label>
+                <div 
+                  style={{ 
+                    height: '140px', 
+                    borderRadius: '8px', 
+                    border: '2px dashed #dee2e6', 
+                    backgroundColor: '#f8f9fa',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {previewUrl ? (
+                    <img 
+                      src={previewUrl} 
+                      alt="미리보기" 
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} 
+                    />
+                  ) : (
+                    <span className="text-muted small">선택된 사진 없음</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. 작업 지침 상세 내용 */}
+            <div className="mb-3">
+              <label className="form-label fw-bold">상세 작업 지침 (본문)</label>
+              <textarea
+                className="form-control"
+                rows={8}
+                placeholder="작업 순서, 주의사항, PDA 조작 요령 등을 상세히 입력해 주세요."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                style={{ lineHeight: '1.6' }}
+              />
+            </div>
+
+            {/* 4. 태그 및 비밀번호 */}
+            <div className="row g-3 mb-4">
+              <div className="col-md-6">
+                <label className="form-label fw-bold">검색 태그 (단어)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="예: 바코드, 입고, PDA, 안전"
+                  value={word}
+                  onChange={(e) => setWord(e.target.value)}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">비밀번호 <span className="text-danger">*</span></label>
+                <input
+                  type="password"
+                  className="form-control"
+                  placeholder="수정/삭제 시 사용할 비밀번호"
+                  value={passwd}
+                  onChange={(e) => setPasswd(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* 5. 제출 버튼 */}
+            <div className="d-flex justify-content-end gap-2 pt-3 border-top">
+              <Link to={`/contents/list_all/${cateno}`} className="btn btn-outline-secondary px-4">
+                취소
+              </Link>
+              <button 
+                type="submit" 
+                className="btn btn-primary px-4 fw-bold"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? '등록 중...' : '가이드 등록 완료'}
+              </button>
+            </div>
+
+          </form>
         </div>
+      </div>
 
-        {/* 검색어 */}
-        <div className='input_div'>
-          <label>검색어</label>
-          <input
-            type="text" name="word" id='word' 
-            value={input.word}
-            onChange={onChange} 
-            onKeyDown={e => enter_chk(e, 'file1MF')}
-            required className="form-control"
-            style={{ flex: 1 }}
-          />
-        </div>
-
-        {/* 이미지 */}
-        <div className='input_div'>
-          <label>이미지</label>
-          <input
-            type="file" name="file1MF" id="file1MF"
-            className="form-control" style={{ flex: 1 }}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)}
-          />
-        </div>
-
-        {/* 패스워드 */}
-        <div className='input_div'>
-          <label>패스워드</label>
-          <input
-            type="password" name="password" id='password'
-            value={input.password} 
-            onChange={onChange} required
-            onKeyDown={e => enter_chk(e, 'btn_send')}
-            className="form-control" style={{ flex: 1 }}
-          />
-        </div>
-
-        <div className="content_body_bottom" style={{ textAlign: 'center', marginTop: 10 }}>
-          <button type="submit" id='btn_send' 
-                  className="btn btn-outline-secondary btn-sm">
-            등록
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/contents/list_all/${cateno}`)}
-            className="btn btn-outline-secondary btn-sm"
-            style={{ marginLeft: '8px' }}
-          >
-            목록
-          </button>
-        </div>
-
-      </form>
-
+      <SimpleModal
+        show={modal.show ?? false}
+        title={modal.title}
+        message={modal.message}
+        onClose={modal.onConfirm || closeModal}
+        onConfirm={modal.onConfirm || closeModal}
+      />
     </div>
-
-  )
+  );
 }
-
-export default Contents_Create

@@ -1,273 +1,324 @@
-import { useEffect, useState, type ChangeEvent, type MouseEvent, type KeyboardEvent } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { enter_chk, axiosInstance, getIP , isImage} from '../Tool'
-import SimpleModal, {type SimpleModalTypePayload} from '../SimpleModal.tsx';
-import type CateType from '../cate/CateType.ts';
-import type ContentsType from './ContentsType.ts';
+import React, { useEffect, useState, type ChangeEvent, type MouseEvent, type KeyboardEvent } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { enter_chk, axiosInstance, getIP, isImage } from '../Tool';
+import SimpleModal, { type SimpleModalTypePayload } from '../SimpleModal';
+import type CateType from '../cate/CateType';
+import type ContentsType from './ContentsType';
+import none1_img from '../../assets/images/none1.png';
 
-const Contents_Update_text = () => {
-  // -------------------------------------------------------------------------------
-  // SimpleModal
-  // -------------------------------------------------------------------------------
-  // 1. SimpleModalTypePayload 대신 명시적으로 엄격한 타입을 지정해 줍니다.
+export default function Contents_Update_file1() {
+  const navigate = useNavigate();
+  const { contentsno } = useParams<{ contentsno: string }>();
+
+  // 1. 모달 상태
   const [modal, setModal] = useState<SimpleModalTypePayload>({
     show: false,
     title: '',
     message: '',
-    onConfirm: undefined, 
+    onConfirm: undefined,
   });
 
-  // 2. 메시지창 출력
-  const openModal = (payload: SimpleModalTypePayload) => setModal({ 
-    show: true, 
-    title: payload.title, 
-    message: payload.message, 
-    // payload.onConfirm이 null일 경우 undefined로 변환하여 에러 방지
-    onConfirm: payload.onConfirm ?? undefined 
+  const openModal = (payload: SimpleModalTypePayload) => setModal({
+    show: true,
+    title: payload.title,
+    message: payload.message,
+    onConfirm: payload.onConfirm ?? undefined,
   });
- 
-  // 최신값을 반영하여 창 닫기
-  const closeModal = () => setModal((modal) => ({ ...modal, show: false })); 
-  // -------------------------------------------------------------------------------
 
-  
-  const navigate = useNavigate();
+  const closeModal = () => setModal(prev => ({ ...prev, show: false }));
 
-  // useParams의 제네릭 명시
-  const { contentsno } = useParams();
-  console.log('-> contentsno:', contentsno);
+  // 2. 폼 및 데이터 상태
+  const [cate, setCate] = useState<CateType>({} as CateType);
+  const [input, setInput] = useState<ContentsType>({
+    contentsno: 0,
+    title: '',
+    file1: '',
+    file1saved: '',
+  });
 
-  const [cate, setCate] = useState<CateType>({});
-  const [input, setInput] = useState<ContentsType>(
-    {
-      contentsno:0,
-      title: '',
-      content: '',
-      word: '',
-      password: '1234',
-      file1: '',
-      file1saved: '',
-    }    
-  );
-
-  // null 허용 파일 타입 설정
+  const [password, setPassword] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>(''); // 새 사진 실시간 미리보기
 
   useEffect(() => {
-    // if (!contentsno) return; // 안정성 확보
+    if (!contentsno) return;
 
     axiosInstance.get(`/contents/read/${contentsno}`)
-      .then(result => result.data)
-      .then(data => {
-        console.log('-> data:', data);
-        
-        setInput(input => ({
-          ...input,
+      .then(res => {
+        const data = res.data;
+        setInput({
           contentsno: data.contentsno,
           title: data.title || '',
-          file1: data.file1,
-          file1saved: data.file1saved,
-        }));
+          file1: data.file1 || '',
+          file1saved: data.file1saved || '',
+        });
 
-        axiosInstance.get(`/cate/${data.cateno}`)
-          .then(result => result.data)
-          .then(data => {
-            setCate(data);          
-            console.log('-> cate data:', data);
-          })
-          .catch(err => console.error(err));
-
+        // 카테고리 정보 조회
+        if (data.cateno) {
+          axiosInstance.get(`/cate/${data.cateno}`)
+            .then(cateRes => setCate(cateRes.data))
+            .catch(err => console.error(err));
+        }
       })
       .catch(err => console.error(err));
   }, [contentsno]);
- 
-  // e.target에 대한 타입 명시
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target;
-    setInput({ ...input, [id]: value });
-  }
 
+  // 새 파일 선택 시 실시간 미리보기 생성
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] ?? null;
+    setFile(selectedFile);
+
+    if (selectedFile) {
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreviewUrl(objectUrl);
+    } else {
+      setPreviewUrl('');
+    }
+  };
+
+  // 3. 파일 변경 처리
   const send_update_file1 = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
 
+    if (!file) {
+      openModal({
+        show: true,
+        title: '안내',
+        message: '새로 교체할 사진 파일을 선택해 주세요.',
+      });
+      return;
+    }
+
+    if (!password.trim()) {
+      openModal({
+        show: true,
+        title: '안내',
+        message: '글 등록 시 입력했던 패스워드를 입력해 주세요.',
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.append('contentsno', String(input.contentsno));
-    formData.append('password', String(input.password));
-    if (file) formData.append('file1MF', file);
+    formData.append('password', password.trim());
+    formData.append('file1MF', file);
 
     try {
       const response = await axiosInstance.post(`/contents/update_file1`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       const result = Number(response.data);
-      console.log('서버 응답:', result);
 
-      if (result == 0) {
+      if (result === 1) {
         openModal({
           show: true,
-          title: '파일 수정 실패',
-          message: '파일 수정에 실패 했습니다. 다시 시도해주세요.',
+          title: '사진 변경 성공',
+          message: '가이드 사진이 성공적으로 교체되었습니다.',
+          onConfirm: () => navigate(`/contents/read/${input.contentsno}`),
         });
-      } else if (result == 1) {
+      } else if (result === 2) {
         openModal({
-          show:true,
-          title: '파일 수정 성공',
-          message: '파일 수정에 성공 했습니다.',
-          onConfirm: () => navigate(`/contents/read/${input.contentsno}`)
+          show: true,
+          title: '패스워드 불일치',
+          message: '비밀번호가 일치하지 않습니다. 다시 확인해 주세요.',
         });
-      } else if (result == 2) {
+      } else {
         openModal({
-          show:true,
-          title: '패스워드 일치하지 않음',
-          message: '패스워드 일치하지 않습니다. 다시 시도해주세요.',
+          show: true,
+          title: '변경 실패',
+          message: '사진 변경 처리에 실패했습니다. (결과 코드: ' + result + ')',
         });
-      } 
-
+      }
     } catch (err) {
       console.error(err);
       openModal({
-        show:true,
+        show: true,
         title: '네트워크 오류',
-        message: '네트워크 오류가 발생했습니다.\n다시 시도해주세요.',
+        message: '서버와 통신 중 문제가 발생했습니다.',
       });
     }
-  }
+  };
 
+  // 4. 파일 삭제 처리 (기본 상태로 리셋)
   const send_delete_file1 = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
 
+    if (!password.trim()) {
+      openModal({
+        show: true,
+        title: '안내',
+        message: '패스워드를 입력해 주세요.',
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.append('contentsno', String(input.contentsno));
-    formData.append('password', String(input.password));
+    formData.append('password', password.trim());
 
     try {
       const response = await axiosInstance.post(`/contents/delete_file1`, formData);
       const result = Number(response.data);
-      console.log('서버 응답:', result);
 
-      if (result == 0) {
+      if (result === 1) {
         openModal({
-          show:true,
-          title: '파일 삭제 실패',
-          message: '파일 삭제에 실패 했습니다. 다시 시도해주세요.',
+          show: true,
+          title: '사진 삭제 완료',
+          message: '등록된 사진이 삭제되었습니다.',
+          onConfirm: () => navigate(`/contents/read/${input.contentsno}`),
         });
-      } else if (result == 1) {
-        setInput(input => ({
-          ...input,
-          file1: 'none1.png',
-          file1saved: 'none1.png',
-        }));
-
+      } else if (result === 2) {
         openModal({
-          show:true,
-          title: '파일 삭제 성공',
-          message: '파일 삭제에 성공 했습니다.',
-          onConfirm: () => navigate(`/contents/read/${input.contentsno}`)
+          show: true,
+          title: '패스워드 불일치',
+          message: '비밀번호가 일치하지 않습니다.',
         });
-        
-      } else if (result == 2) {
+      } else if (result === 3) {
         openModal({
-          show:true,
-          title: '패스워드 일치하지 않음',
-          message: '패스워드 일치하지 않습니다. 다시 시도해주세요.',
+          show: true,
+          title: '삭제 불가',
+          message: '기본 이미지 상태이거나 삭제할 사진이 없습니다.',
         });
-      } else if (result == 3) {
-        openModal({
-          show:true,
-          title: '기본 이미지 파일 삭제 오류',
-          message: '기본 이미지 파일은 삭제 할 수 없습니다.',
-        });
-      } 
-
+      }
     } catch (err) {
       console.error(err);
       openModal({
-        show:true,
+        show: true,
         title: '네트워크 오류',
-        message: '네트워크 오류가 발생했습니다.\n다시 시도해주세요.',
+        message: '서버와 통신 중 문제가 발생했습니다.',
       });
     }
-  }
+  };
+
+  // 현재 노출할 원본 이미지 경로 (포트 9101 기준)
+  const currentImgSrc = input.file1saved && isImage(input.file1)
+    ? `http://${getIP()}:9101/storage/contents/${input.file1saved}?t=${Date.now()}`
+    : none1_img;
 
   return (
-    <div className='content'>
-      <div className='title_line_left' >{cate.grp} &gt; {cate.name}</div>
-      <aside className='aside_right'>
-        <Link to={`/contents/read/${input.contentsno}`}>조회</Link>
-        <span className='aside_menu_divide'>|</span>        
-        <Link to={`/contents/create/${cate.cateno}`}>등록</Link>
-        <span className='aside_menu_divide'>|</span>
-        <a href='#' onClick={(e) => { e.preventDefault(); location.reload(); }}>새로고침</a>
-      </aside>
-      <div className='aside_menu_line'></div> 
+    <div className="container" style={{ maxWidth: '900px', margin: '40px auto', padding: '0 15px' }}>
+      
+      {/* 상단 네비게이션 헤더 */}
+      <div className="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom">
+        <div>
+          <span className="badge bg-secondary mb-1">{cate.grp || '공정'}</span>
+          <h3 className="fw-bold mb-0 text-dark">🖼️ 가이드 사진 변경</h3>
+        </div>
+        <div className="d-flex gap-2">
+          <Link to={`/contents/read/${input.contentsno}`} className="btn btn-outline-secondary btn-sm">
+            상세보기로
+          </Link>
+          <Link to={`/contents/list_all/${cate.cateno}`} className="btn btn-outline-secondary btn-sm">
+            목록으로
+          </Link>
+        </div>
+      </div>
 
-      <fieldset className="fieldset_basic">
-        <ul>
-          <li className="li_none">
-            <div style={{ width: "100%", wordBreak: "break-all" }}>
-              {isImage(input.file1) && (
-                <img
-                  src={`http://${getIP()}:9100/contents/storage/${input.file1saved}`}
-                  alt=""
-                  style={{ width: "50%", float: "left", marginTop: "0.5%", marginRight: "1%" }}
-                />
-              )}
-            </div>
-
-            <div style={{textAlign: 'left', width: '47%', float: 'left', marginBottom: '60px'}}>
-              <div style={{ fontSize: "1.5em", fontWeight: "bold", marginBottom: '30px' }}>{input.title}</div>
-              
-              <input
-                type="file" name="file1MF" id="file1MF"
-                className="form-control" style={{ flex: 1 }}
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-
-              <label>패스워드</label>
-              <input
-                type="password" name="password" id='password'
-                value={input.password} 
-                onChange={onChange} required
-                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => enter_chk(e,'btn_send')}
-                className="form-control" style={{ flex: 1 }}
-              />
-            </div>            
+      {/* 메인 수정 카드 */}
+      <div className="card shadow-sm border-0">
+        <div className="card-header bg-white py-3 fw-bold fs-5">
+          {input.title}
+        </div>
+        <div className="card-body p-4">
+          <div className="row g-4 mb-4">
             
-            <div style={{ whiteSpace: "pre-wrap", textAlign: 'center' }}>
-              <button type="button" id='btn_send_update' 
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={send_update_file1} style={{marginRight: '5px'}}>
-                파일 변경 처리
-              </button>
-              <button type="button" id='btn_send_delete' 
-                      className="btn btn-outline-secondary btn-sm" 
-                      onClick={send_delete_file1} style={{marginRight: '5px'}}>
-                파일 삭제
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate(`/contents/list/${cate.cateno}`)}
-                className="btn btn-outline-secondary btn-sm"
+            {/* 좌측: 현재 등록된 사진 vs 새로 선택한 사진 미리보기 */}
+            <div className="col-md-6 text-center">
+              <label className="form-label fw-bold d-block text-secondary small">
+                {previewUrl ? '✨ 새로 교체될 사진 (미리보기)' : '📌 현재 등록된 사진'}
+              </label>
+              <div 
+                style={{ 
+                  borderRadius: '10px', 
+                  overflow: 'hidden', 
+                  backgroundColor: '#f8f9fa', 
+                  border: '2px dashed #dee2e6',
+                  height: '280px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
-                취소
-              </button>
+                <img
+                  src={previewUrl || currentImgSrc}
+                  alt="가이드 사진"
+                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = none1_img;
+                  }}
+                />
+              </div>
+              <div className="text-muted small mt-2">
+                {previewUrl ? '선택된 새 파일 미리보기' : (input.file1 || '등록된 파일 없음')}
+              </div>
             </div>
-          </li>
-        </ul>
-      </fieldset>
+
+            {/* 우측: 파일 선택 및 비밀번호 입력 폼 */}
+            <div className="col-md-6 d-flex flex-column justify-content-center">
+              
+              <div className="mb-3">
+                <label className="form-label fw-bold">새 사진 파일 선택</label>
+                <input
+                  type="file"
+                  name="file1MF"
+                  id="file1MF"
+                  className="form-control"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+                <div className="form-text small">
+                  JPG, PNG, GIF 등 이미지 파일만 업로드 가능합니다.
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="form-label fw-bold">비밀번호</label>
+                <input
+                  type="password"
+                  name="password"
+                  id="password"
+                  value={password}
+                  placeholder="등록 시 설정한 비밀번호"
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => enter_chk(e, 'btn_send_update')}
+                  className="form-control"
+                  required
+                />
+              </div>
+
+              {/* 액션 버튼 바 */}
+              <div className="d-flex gap-2">
+                <button
+                  type="button"
+                  id="btn_send_update"
+                  className="btn btn-primary fw-bold flex-fill py-2"
+                  onClick={send_update_file1}
+                >
+                  🚀 사진 변경 저장
+                </button>
+                <button
+                  type="button"
+                  id="btn_send_delete"
+                  className="btn btn-outline-danger fw-bold py-2"
+                  onClick={send_delete_file1}
+                >
+                  🗑️ 사진 삭제
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
 
       <SimpleModal
-        show={modal.show}
+        show={modal.show ?? false}
         title={modal.title}
         message={modal.message}
         onClose={modal.onConfirm || closeModal}
         onConfirm={modal.onConfirm || closeModal}
-      />   
+      />
     </div>
-  )
+  );
 }
-
-export default Contents_Update_text

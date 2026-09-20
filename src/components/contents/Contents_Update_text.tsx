@@ -1,240 +1,226 @@
-import React, { useEffect, useState, type ChangeEvent } from 'react'
-import {useParams, useNavigate, Link} from 'react-router-dom'
-import {enter_chk, axiosInstance} from '../Tool.ts'
-import SimpleModal, {type SimpleModalTypePayload} from '../SimpleModal.tsx';
+import React, { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { axiosInstance } from '../Tool';
+import SimpleModal, { type SimpleModalTypePayload } from '../SimpleModal';
+import type CateType from '../cate/CateType';
+import type ContentsType from './ContentsType';
 
-import type CateType from '../cate/CateType.ts';
-import type ContentsType from './ContentsType.ts';
+export default function Contents_Update_text() {
+  const navigate = useNavigate();
+  const { contentsno } = useParams<{ contentsno: string }>();
 
-const Contents_Update_text = () => {
-  // -------------------------------------------------------------------------------
-  // SimpleModal
-  // -------------------------------------------------------------------------------
-  // 1. SimpleModalTypePayload 대신 명시적으로 엄격한 타입을 지정해 줍니다.
+  // 1. 모달 상태
   const [modal, setModal] = useState<SimpleModalTypePayload>({
     show: false,
     title: '',
     message: '',
-    onConfirm: undefined, 
+    onConfirm: undefined,
   });
 
-  // 2. 메시지창 출력
-  const openModal = (payload: SimpleModalTypePayload) => setModal({ 
-    show: true, 
-    title: payload.title, 
-    message: payload.message, 
-    // payload.onConfirm이 null일 경우 undefined로 변환하여 에러 방지
-    onConfirm: payload.onConfirm ?? undefined 
+  const openModal = (payload: SimpleModalTypePayload) => setModal({
+    show: true,
+    title: payload.title,
+    message: payload.message,
+    onConfirm: payload.onConfirm ?? undefined,
   });
- 
-  // 최신값을 반영하여 창 닫기
-  const closeModal = () => setModal((modal) => ({ ...modal, show: false })); 
-  // -------------------------------------------------------------------------------
 
-  const navigate = useNavigate();
+  const closeModal = () => setModal(prev => ({ ...prev, show: false }));
 
-  const {contentsno} = useParams(); // 수정할 글 번호 수집
-  console.log('-> contentsno:', contentsno);
+  // 2. 폼 및 데이터 상태
+  const [cate, setCate] = useState<CateType>({} as CateType);
+  const [title, setTitle] = useState<string>('');
+  const [content, setContent] = useState<string>('');
+  const [word, setWord] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [cateno, setCateno] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const [cate, setCate] = useState<CateType>({});
-  const [input, setInput] = useState<ContentsType>(
-    {
-      contentsno:0,
-      title: '',
-      content: '',
-      word: '',
-      password: '1234',
-    }    
-  );
+  useEffect(() => {
+      // 1. contentsno가 없거나 NaN일 경우 조기 종료
+      if (!contentsno || contentsno === 'undefined') return;
 
-  useEffect(
-    () => {
-      // 수정할 내용을 일어옴.
       axiosInstance.get(`/contents/read/${contentsno}`)
-      .then(result => result.data)
-      .then(data => {
-        console.log('-> data:', data);
-        
-        // password는 초기값 사용
-        setInput(input => ({
-          ...input,
-          contentsno: data.contentsno,
-          title: data.title || '',
-          content: data.content || '',
-          word: data.word || '',
-        }));
+        .then(res => {
+          const data: ContentsType = res.data;
+          if (!data) return;
 
-        axiosInstance.get(`/cate/${data.cateno}`)
-        .then(result => result.data)
-        .then(data => {
-          setCate(data);          
-          console.log('-> cate data:', data);
+          setTitle(data.title ?? '');
+          setContent(data.content ?? '');
+          setWord(data.word ?? '');
+          
+          // cateno 기본값 0 보장 (타입 에러 방지)
+          const currentCateno = Number(data.cateno ?? 0);
+          setCateno(currentCateno);
+
+          // cateno가 유효한 번호일 때만 카테고리 정보 조회
+          if (currentCateno > 0) {
+            axiosInstance.get(`/cate/${currentCateno}`)
+              .then(cateRes => {
+                if (cateRes.data) setCate(cateRes.data);
+              })
+              .catch(err => console.error('카테고리 로드 실패:', err));
+          }
         })
-        .catch(err => console.error(err));
+        .catch(err => console.error('콘텐츠 로드 실패:', err));
+    }, [contentsno]);
 
-      })
-      .catch(err => console.error(err));
-    }, [contentsno]
-  );
- 
-  // e.target: event가 발생한 태그
-  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const {id, value} = e.target;
-    setInput({...input,  [id]: value});
-  }
-
-  // 파일 전송 완료를 기다려야 함으로 동기 통신을 지정
-  const send = async (e: React.SyntheticEvent) => {
+  // 3. 본문 텍스트 수정 제출 (POST /contents/update_text)
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    if (!title.trim()) {
+      openModal({ show: true, title: '확인', message: '가이드 제목을 입력해 주세요.' });
+      return;
+    }
+    if (!password.trim()) {
+      openModal({ show: true, title: '확인', message: '등록 시 설정한 비밀번호를 입력해 주세요.' });
+      return;
+    }
+
+    // 백엔드 ContentsCont.update_text 파라미터 규격에 맞춘 폼데이터 조립
     const formData = new FormData();
-    formData.append('contentsno', String(input.contentsno));
-    formData.append('title', String(input.title));
-    formData.append('content', String(input.content));
-    formData.append('word', String(input.word));
-    formData.append('password', String(input.password));
+    formData.append('contentsno', String(contentsno));
+    formData.append('title', title.trim());
+    formData.append('content', content.trim());
+    formData.append('word', word.trim());
+    formData.append('password', password.trim());
+    formData.append('passwd', password.trim());
 
     try {
-      const response = await axiosInstance.post(`/contents/update_text`, formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      setIsSubmitting(true);
+      const res = await axiosInstance.post('/contents/update_text', formData);
+      const result = Number(res.data);
 
-      // if (response.status === 401) {
-      //   alert('업로드 권한이 없습니다.\n관리자로 다시 로그인 해주세요.');
-      //   return;
-      // } else if (response.status !== 200) {
-      //   alert('처리에 실패했습니다.\n다시 시도해주세요.');
-      //   return;
-      // }
-
-      // const result = await response.text(); // fetch
-      const result = Number(response.data); // axios
-      console.log('서버 응답:', result);
-
-      if (result == 0) {
+      if (result === 1) {
         openModal({
-          show: true, 
+          show: true,
+          title: '수정 완료',
+          message: '본문 내용이 성공적으로 수정되었습니다.',
+          onConfirm: () => navigate(`/contents/read/${contentsno}`),
+        });
+      } else if (result === 2) {
+        openModal({
+          show: true,
+          title: '비밀번호 불일치',
+          message: '비밀번호가 일치하지 않습니다. 다시 확인해 주세요.',
+        });
+      } else {
+        openModal({
+          show: true,
           title: '수정 실패',
-          message: '글 수정에 실패 했습니다. 다시 시도해주세요.',
+          message: '본문 수정 처리에 실패했습니다.',
         });
-      } else if (result == 1) {
-        openModal({
-          show: true, 
-          title: '수정 성공',
-          message: '글 수정에 성공 했습니다.',
-          onConfirm: () => navigate(`/contents/list/${cate.cateno}`)
-        });
-        
-      } else if (result == 2) {
-        openModal({
-          show: true, 
-          title: '패스워드 일치하지 않음',
-          message: '패스워드 일치하지 않습니다. 다시 시도해주세요.',
-        });
-      } 
-
+      }
     } catch (err) {
-      console.error(err);
+      console.error('본문 수정 에러:', err);
       openModal({
-        show: true, 
+        show: true,
         title: '네트워크 오류',
-        message: '네트워크 오류가 발생했습니다.\n다시 시도해주세요.',
+        message: '서버와 통신 중 오류가 발생했습니다.',
       });
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
-    <div className='content'>
-      <div className='title_line_left' >{cate.grp} &lt; {cate.name}</div>
-      <aside className='aside_right'>
-        <Link to={`/contents/create/${cate.cateno}`}>등록</Link>
-        <span className='aside_menu_divide'>|</span>
-        <a href='#' onClick={() => location.reload()}>새로고침</a>
-      </aside>
-      <div className='aside_menu_line'></div> 
-
-      {/* 수정 폼 */}
-      <form onSubmit={send}>
-        <input type="hidden" name="contentsno" value={input.contentsno} />
-
-        {/* 제목 */}
-        <div className='input_div'>
-          <label className="form-label">제목</label>
-          <input type="text" name="title" id='title' value={input.title}
-                 onChange={onChange} required autoFocus
-                 onKeyDown={e=>enter_chk(e,'content')}
-                 className="form-control" style={{ flex: 1 }}
-          />
+    <div className="container" style={{ maxWidth: '900px', margin: '40px auto', padding: '0 15px' }}>
+      
+      {/* 상단 헤더 */}
+      <div className="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom">
+        <div>
+          <span className="badge bg-secondary mb-1">{cate.grp || '공정'}</span>
+          <h3 className="fw-bold mb-0 text-dark">✏️ {cate.name || '가이드'} 본문 수정</h3>
         </div>
-
-        {/* 내용 */}
-        <div className='input_div'>
-          <label>내용</label>
-          <textarea name="content" id='content' 
-            value={input.content}
-            onChange={onChange} required 
-            className="form-control"
-            rows={6} style={{ flex: 1 }}
-          />
+        <div className="d-flex gap-2">
+          <Link to={`/contents/read/${contentsno}`} className="btn btn-outline-secondary btn-sm">
+            상세보기로
+          </Link>
+          <Link to={`/contents/list_all/${cateno}`} className="btn btn-outline-secondary btn-sm">
+            목록으로
+          </Link>
         </div>
+      </div>
 
-        {/* 검색어 */}
-        <div className='input_div'>
-          <label>검색어</label>
-          <input
-            type="text" name="word" id='word' 
-            value={input.word}
-            onChange={onChange} 
-            onKeyDown={e=>enter_chk(e,'password')}
-            required className="form-control"
-            style={{ flex: 1 }}
-          />
+      {/* 폼 카드 */}
+      <div className="card shadow-sm border-0">
+        <div className="card-body p-4">
+          <form onSubmit={handleSubmit}>
+            
+            {/* 가이드 제목 */}
+            <div className="mb-3">
+              <label className="form-label fw-bold">가이드 제목 <span className="text-danger">*</span></label>
+              <input
+                type="text"
+                className="form-control"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* 작업 지침 내용 */}
+            <div className="mb-3">
+              <label className="form-label fw-bold">상세 작업 지침 (본문)</label>
+              <textarea
+                className="form-control"
+                rows={10}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                style={{ lineHeight: '1.6' }}
+              />
+            </div>
+
+            {/* 태그 및 비밀번호 */}
+            <div className="row g-3 mb-4">
+              <div className="col-md-6">
+                <label className="form-label fw-bold">검색 태그</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={word}
+                  placeholder="예: 바코드, 진열, RTO"
+                  onChange={(e) => setWord(e.target.value)}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">비밀번호 확인 <span className="text-danger">*</span></label>
+                <input
+                  type="password"
+                  className="form-control"
+                  placeholder="등록 시 입력한 비밀번호"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* 제출 버튼 */}
+            <div className="d-flex justify-content-end gap-2 pt-3 border-top">
+              <Link to={`/contents/read/${contentsno}`} className="btn btn-outline-secondary px-4">
+                취소
+              </Link>
+              <button 
+                type="submit" 
+                className="btn btn-primary px-4 fw-bold"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? '저장 중...' : '수정 사항 저장'}
+              </button>
+            </div>
+
+          </form>
         </div>
+      </div>
 
-        {/* 패스워드 */}
-        <div className='input_div'>
-          <label>패스워드</label>
-          <input
-            type="password" name="password" id='password'
-            value={input.password} 
-            onChange={onChange} required
-            onKeyDown={e=>enter_chk(e,'btn_send')}
-            className="form-control" style={{ flex: 1 }}
-          />
-        </div>
-
-        <div className="content_body_bottom" style={{ textAlign: 'center', marginTop: 10 }}>
-          <button type="submit" id='btn_send' 
-                  className="btn btn-outline-secondary btn-sm">
-            저장
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/contents/list/${cate.cateno}`)}
-            className="btn btn-outline-secondary btn-sm"
-            style={{ marginLeft: '8px' }}
-          >
-            취소
-          </button>
-        </div>
-
-      </form>
-      {/* 모달 */}
       <SimpleModal
-        show={modal.show}
+        show={modal.show ?? false}
         title={modal.title}
         message={modal.message}
-        onClose={closeModal}
+        onClose={modal.onConfirm || closeModal}
         onConfirm={modal.onConfirm || closeModal}
-      />   
+      />
     </div>
-
-  )
+  );
 }
-
-export default Contents_Update_text
-

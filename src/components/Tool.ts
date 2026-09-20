@@ -1,10 +1,12 @@
 import axios from 'axios';
 import type { KeyboardEvent } from 'react';
 
+// 1. getIP 함수: 현재 접속한 브라우저의 호스트(IP/도메인)를 자동으로 반환
 const getIP = () => {
-  // return "localhost";
-  return "10.1.205.121"; // 학원
-  // return "121.78.128.17"; // gCloud
+  if (typeof window !== 'undefined') {
+    return window.location.hostname;
+  }
+  return "localhost";
 }
 
 const getCopyright = () => {
@@ -47,17 +49,9 @@ function set_focus(nextTag: string){
   }
 }
 
-// Ajax 통신 패키지 설정
+// 2. axiosInstance 설정: getIP()를 활용하여 동적으로 baseURL 구성
 const axiosInstance = axios.create({
-    // 개발 환경과 배포 환경에 따라 baseURL 설정
-    // Vite 환경 변수 사용
-    // 개발 환경: http://localhost:4000
-    // 배포 환경: 상대 경로 ''
-    // import.meta.env.PROD : vite 자동 제공 환경 변수 true: 배포, false: 개발,
-    // npm run dev: import.meta.env.PROD -> false로 자동 설정
-    // npm run build: import.meta.env.PROD -> true로 자동 설정
-    // '': 같은 ip에 Backend 서버가 있다는 가정하에 상대경로로 요청을 보냄.
-    baseURL: import.meta.env.PROD ? '' : 'http://10.1.205.121:9101'
+  baseURL: import.meta.env.PROD ? '' : `http://${getIP()}:9101`
 })
 
 // 파일 다운로드 함수

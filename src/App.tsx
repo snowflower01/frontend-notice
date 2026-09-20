@@ -16,6 +16,8 @@ import Member_Logout from './components/member/Member_Logout';
 import Auth from './components/Auth';
 import Cate from './components/cate/Cate';
 import Notice_List from './components/notice/Notice_List';
+import Notice_Create from './components/notice/Notice_Create';
+import Notice_Detail from './components/notice/Notice_Detail';
 import Contents_List_all from './components/contents/Contents_List_all';
 import Contents_Create from './components/contents/Contents_Create';
 import Contents_Read from './components/contents/Contents_Read';
@@ -31,7 +33,9 @@ function App() {
         <Routes>
           {/* 🏠 오직 첫 메인 주소('/') 일 때만 컨베이어 벨트 메인 이미지(<Home />) 출력 */}
           <Route path='/' element={<Home />} />
-          <Route path='/notice/find_all' element={<Notice_List />} />
+          <Route path="/notice/list" element={<Notice_List />} />
+          <Route path="/notice/create" element={<Notice_Create />} />
+          <Route path="/notice/detail/:noticeno" element={<Notice_Detail />} />
           
           {/* 💡 2. Menu.tsx의 주소들과 1:1로 정확하게 대응하는 Route 경로 배치 (원본 보존) */}
           <Route path='/member/signup' element={<Signup />} />

@@ -1,5 +1,17 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { axiosInstance } from '../components/Tool' // ⬅️ axiosInstance 경로 확인 (보통 ../Tool 또는 ../components/Tool)
+
+// 카테고리 아이템 타입 정의
+export interface CateItem {
+  cateno: number;
+  grp: string;
+  name: string;
+  cnt: number;
+  seqno: number;
+  visible: string;
+  rdate: string;
+}
 
 // 1. 기존 쿠키 저장소 정의
 const cookieStorage = {
@@ -27,23 +39,43 @@ interface SessionStore {
   setId: (value: string) => void;
   grade: number;
   setGrade: (value: number) => void;
+
+  // 💡 카테고리 관련 상태 및 함수 추가
+  categories: CateItem[];
+  setCategories: (categories: CateItem[]) => void;
+  loadCategories: () => Promise<void>;
 }
 
 export const GlobalStoreSession = create<SessionStore>()(
   persist(
     (set) => ({
       memberno: 99,
-      setMemberno: (value) => set({memberno: value}),
+      setMemberno: (value) => set({ memberno: value }),
       login: false,
       setLogin: (value) => set({ login: value }),
       id: '',
       setId: (value) => set({ id: value }),
       grade: 99,
-      setGrade: (value) => set({ grade: value })
+      setGrade: (value) => set({ grade: value }),
+
+      // 💡 카테고리 초기값 및 로딩 로직
+      categories: [],
+      setCategories: (categories) => set({ categories }),
+      loadCategories: async () => {
+        try {
+          // 백엔드 CateCont의 listAllVisible 호출 (/cate/list_all_visible)
+          const res = await axiosInstance.get('/cate/list_all_visible');
+          if (Array.isArray(res.data)) {
+            set({ categories: res.data });
+          }
+        } catch (err) {
+          console.error('카테고리 로딩 실패:', err);
+        }
+      }
     }),
     {
       name: 'auth-cookie-store',
-      storage: createJSONStorage(() => sessionStorage), 
+      storage: createJSONStorage(() => sessionStorage),
     }
   )
 );
@@ -76,4 +108,3 @@ export const GlobalStoreCookie = create<CookieStore>()(
     }
   )
 );
-

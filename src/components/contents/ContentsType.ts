@@ -24,21 +24,23 @@
 // visible                                CHAR(1)         DEFAULT 'Y' NOT NULL,
 
 export default interface ContentsType {
-  contentsno?:number;
-  memberno?:number;
+  contentsno?: number;
   cateno?: number;
+  memberno?: number;
   title?: string;
   content?: string;
-  cnt?: number;
-  password?: string;
+  passwd?: string;
   word?: string;
+  views?: number; // 💡 이 줄을 추가해 주세요!
+  rdate?: string;
   file1?: string;
   file1saved?: string;
-  rdate?: string;
+  thumb1?: string;
   size1?: number;
   size1_label?: string;
-  thumb1?: string;
   youtube?: string;
   map?: string;
+  cnt?: number;
+  recom?: number;
 }
 

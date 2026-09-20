@@ -84,7 +84,7 @@ const Member_Login = () => {
 
   const test = () => {
     setInput({
-      id: 'admin1', // 해당하는 변수의 값을 덮어씀    
+      id: 'user', // 해당하는 변수의 값을 덮어씀    
       password: '1234',
       grade: 6
     });
