@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { axiosInstance, getIP } from '../components/Tool';
+import { axiosInstance, getIP } from './Tool';
+import { GlobalStoreSession } from '../store/store';
 import none1_img from '../assets/images/none1.png';
-import type ContentsType from '../components/contents/ContentsType';
-import type CateType from '../components/cate/CateType';
+import type ContentsType from './contents/ContentsType';
+import type CateType from './cate/CateType';
 
 interface NoticeType {
   noticeno: number;
@@ -14,24 +15,50 @@ interface NoticeType {
 export default function Home() {
   const navigate = useNavigate();
 
+  // 타입 에러 방지를 위해 as any로 감싸서 session 속성 안전하게 접근
+  const session = GlobalStoreSession() as any;
+  const storeId = session?.id;
+  const storeLogin = session?.login;
+
   // 실제 연동 데이터 상태 관리
   const [cateList, setCateList] = useState<CateType[]>([]);
   const [bestList, setBestList] = useState<ContentsType[]>([]);
   const [noticeList, setNoticeList] = useState<NoticeType[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // 💡 비로그인 사원 차단 가드 함수 (memberno: 99 버그 원천 차단)
+  const checkAuthAndNavigate = (targetUrl: string) => {
+    const sessionId = sessionStorage.getItem('id');
+
+    // 1. 스토어의 id가 실제로 채워져 있거나
+    // 2. storeLogin이 명시적으로 true이거나
+    // 3. 브라우저 sessionStorage에 id가 존재할 때만 로그인으로 판정
+    const isAuthenticated = Boolean(
+      (storeId && String(storeId).trim() !== '') ||
+      (storeLogin === true) ||
+      (sessionId && sessionId.trim() !== '')
+    );
+
+    if (!isAuthenticated) {
+      alert('물류센터 사원 로그인이 필요한 서비스입니다.');
+      navigate('/member/login');
+      return;
+    }
+
+    navigate(targetUrl);
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
 
-        // 1. 공정 카테고리 목록 (백엔드의 실제 API인 /cate/list_all_visible 호출)
+        // 1. 공정 카테고리 목록
         const cateRes = await axiosInstance.get('/cate/list_all_visible').catch((err) => {
           console.error('❌ /cate/list_all_visible 호출 실패:', err);
           return { data: [] };
         });
         
-        // 백엔드에서 이미 visible='Y'인 것만 주므로, 더미 구분선('--')만 제외하고 세팅
         const rawCates: CateType[] = Array.isArray(cateRes.data) ? cateRes.data : [];
         const filteredCates = rawCates.filter((c) => c.name && c.name.trim() !== '--');
         setCateList(filteredCates);
@@ -143,7 +170,7 @@ export default function Home() {
                       {noticeList.map((n) => (
                         <li 
                           key={n.noticeno} 
-                          onClick={() => navigate(`/notice/read/${n.noticeno}`)}
+                          onClick={() => navigate(`/notice/detail/${n.noticeno}`)}
                           className="py-2 border-bottom d-flex justify-content-between align-items-center text-truncate"
                           style={{ cursor: 'pointer', fontSize: '13.5px' }}
                           onMouseEnter={(e) => (e.currentTarget.style.color = '#0074e4')}
@@ -165,7 +192,7 @@ export default function Home() {
 
           </div>
 
-          {/* 3. 공정별 바로가기 (5열 최적화) */}
+          {/* 3. 공정별 바로가기 (5열 최적화 + 사원 인증 가드) */}
           <div className="mb-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h6 className="fw-bold text-dark mb-0">📂 공정별 표준 작업 지침 바로가기</h6>
@@ -181,7 +208,7 @@ export default function Home() {
                 cateList.map((c) => (
                   <div key={c.cateno} className="col">
                     <div
-                      onClick={() => navigate(`/contents/list_all/${c.cateno}`)}
+                      onClick={() => checkAuthAndNavigate(`/contents/list_all/${c.cateno}`)}
                       className="card h-100 border p-3 text-center shadow-sm"
                       style={{
                         backgroundColor: '#ffffff',
@@ -236,7 +263,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 4. 사원 추천 Best 가이드 (TOP 3) */}
+          {/* 4. 사원 추천 Best 가이드 (TOP 3 + 사원 인증 가드) */}
           <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h6 className="fw-bold text-dark mb-0">🔥 추천수 높은 Best 가이드 (TOP 3)</h6>
@@ -259,7 +286,7 @@ export default function Home() {
                   return (
                     <div key={item.contentsno} className="col">
                       <div
-                        onClick={() => navigate(`/contents/read/${item.contentsno}`)}
+                        onClick={() => checkAuthAndNavigate(`/contents/read/${item.contentsno}`)}
                         className="card h-100 border shadow-sm p-3 position-relative"
                         style={{
                           borderRadius: '8px',

@@ -11,9 +11,21 @@ export default function Contents_List_all() {
   const { cateno } = useParams<{ cateno: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { login, grade } = GlobalStoreSession();
+  // 전역 세션 상태 추출 (login, id, memberno, grade)
+  const { login, grade, id, memberno } = GlobalStoreSession();
 
-  // 1. 뷰 모드 상태 (기본값: 'table', 옵션: 'table' | 'grid')
+useEffect(() => {
+  // 💡 login이 true이거나 유효한 id가 있을 때만 로그인으로 인정
+  const isAuth = login === true && id && id.trim() !== '';
+
+  if (!isAuth) {
+    alert('물류센터 사원 로그인이 필요한 서비스입니다.');
+    navigate('/member/login');
+    return;
+  }
+}, [login, id, memberno, navigate]);
+
+  // 2. 뷰 모드 상태 (기본값: 'table', 옵션: 'table' | 'grid')
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   // 검색 및 페이징 파라미터 관리
@@ -30,7 +42,7 @@ export default function Contents_List_all() {
   const [totalElements, setTotalElements] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // 2. 카테고리 정보 로드
+  // 3. 카테고리 정보 로드
   useEffect(() => {
     if (!cateno) return;
     axiosInstance.get(`/cate/${cateno}`)
@@ -38,7 +50,7 @@ export default function Contents_List_all() {
       .catch(err => console.error('카테고리 정보 조회 실패:', err));
   }, [cateno]);
 
-  // 3. 가이드 목록 페이징/검색 조회 (서버 최신 데이터 동기화)
+  // 4. 가이드 목록 페이징/검색 조회 (서버 최신 데이터 동기화)
   const fetchContents = useCallback(async () => {
     if (!cateno) return;
     try {
@@ -85,7 +97,7 @@ export default function Contents_List_all() {
   return (
     <div className="container" style={{ maxWidth: '1050px', margin: '40px auto', padding: '0 15px' }}>
       
-      {/* 1. 상단 타이틀 & 메뉴 헤더 */}
+      {/* 상단 타이틀 & 메뉴 헤더 */}
       <div className="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom flex-wrap gap-2">
         <div>
           <span className="badge bg-secondary mb-1">{cate.grp || '공정'}</span>
@@ -111,7 +123,7 @@ export default function Contents_List_all() {
         </div>
       </div>
 
-      {/* 2. 검색 바 및 뷰 모드 전환 토글 */}
+      {/* 검색 바 및 뷰 모드 전환 토글 */}
       <div className="card shadow-sm border-0 mb-4 bg-light">
         <div className="card-body p-3">
           <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -151,7 +163,7 @@ export default function Contents_List_all() {
               )}
             </div>
 
-            {/* 🎯 [추가] 표 방식 / 카드 그리드 방식 전환 버튼 그룹 */}
+            {/* 표 방식 / 카드 그리드 방식 전환 버튼 그룹 */}
             <div className="btn-group" role="group" aria-label="View Mode Toggle">
               <button
                 type="button"
@@ -175,7 +187,7 @@ export default function Contents_List_all() {
         </div>
       </div>
 
-      {/* 3. 콘텐츠 리스트 렌더링 */}
+      {/* 콘텐츠 리스트 렌더링 */}
       {isLoading ? (
         <div className="text-center py-5 text-muted">
           <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
@@ -194,7 +206,7 @@ export default function Contents_List_all() {
         </div>
       ) : viewMode === 'table' ? (
         
-        /* 📋 [표 방식] 텍스트가 풍부하게 보이는 테이블 뷰 */
+        /* [표 방식] 텍스트 중심 테이블 뷰 */
         <div className="card shadow-sm border-0 mb-4">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -230,8 +242,8 @@ export default function Contents_List_all() {
                             margin: '0 auto', 
                             borderRadius: '6px', 
                             overflow: 'hidden', 
-                            backgroundColor: '#f8f9fa',
-                            border: '1px solid #dee2e6'
+                            backgroundColor: '#f8f9fa', 
+                            border: '1px solid #dee2e6' 
                           }}
                         >
                           <img
@@ -295,7 +307,7 @@ export default function Contents_List_all() {
 
       ) : (
 
-        /* 🔲 [그리드 방식] 사진 중심 시각적 카드 뷰 */
+        /* [그리드 방식] 사진 중심 카드 뷰 */
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mb-4">
           {list.map((item) => {
             const thumbSrc = item.thumb1 && item.thumb1.trim() !== ''
@@ -370,7 +382,7 @@ export default function Contents_List_all() {
 
       )}
 
-      {/* 4. 페이징 네비게이션 */}
+      {/* 페이징 네비게이션 */}
       {totalPages > 1 && (
         <div className="d-flex justify-content-center mt-4">
           <ul className="pagination pagination-sm">

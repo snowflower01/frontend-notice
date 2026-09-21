@@ -19,7 +19,18 @@ export default function Contents_Read() {
   const { contentsno } = useParams<{ contentsno: string }>();
   const [searchParams] = useSearchParams();
 
-  const { login, grade } = GlobalStoreSession();
+  // 전역 세션 상태 추출 (login, grade, id, memberno)
+  const { login, grade, id, memberno } = GlobalStoreSession();
+
+  useEffect(() => {
+    const isAuth = login === true && id && id.trim() !== '';
+
+    if (!isAuth) {
+      alert('물류센터 사원 로그인이 필요한 서비스입니다.');
+      navigate('/member/login');
+      return;
+    }
+  }, [login, id, memberno, navigate]);
 
   const page = Number(searchParams.get('page') ?? 0);
   const word = String(searchParams.get('word') ?? '');
@@ -49,7 +60,7 @@ export default function Contents_Read() {
   useEffect(() => {
     if (!contentsno || contentsno === 'undefined') return;
 
-    // 1. 상세 로드
+    // 상세 로드
     axiosInstance.get(`/contents/read/${contentsno}`)
       .then(res => {
         const item: ContentsType = res.data;
@@ -406,7 +417,7 @@ export default function Contents_Read() {
         </div>
       )}
 
-      {/* 💡 5. 이전글 / 다음글 연속 이동 네비게이션 카드 */}
+      {/* 5. 이전글 / 다음글 연속 이동 네비게이션 카드 */}
       <div className="card shadow-sm border-0 mb-4" style={{ borderRadius: '10px' }}>
         <ul className="list-group list-group-flush" style={{ borderRadius: '10px' }}>
           {/* 이전글 */}
